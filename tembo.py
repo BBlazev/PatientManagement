@@ -26,7 +26,12 @@ class Patient(Base):
     id = Column(Integer,primary_key = True)
     name = Column(String)
     medical_history = Column(String,  nullable=True)
+    Start_of_problems = Column(Date)
+    ENd_of_problems = Column(Date)
     image_path = Column(String)
+    OIB = Column(sqlalchemy.BigInteger)
+    Date_of_Birth = Column(Date)
+    Sex = Column(String)
 
     appointments = relationship("Appointment", back_populates="patient", cascade="all, delete")
     prescriptions = relationship("Prescription", back_populates="patient", cascade="all, delete")
@@ -43,7 +48,7 @@ class Doctor(Base):
 class Appointment(Base):
     __tablename__ = "Appointment"
     id = Column(Integer, primary_key=True)
-    type = Column(String)
+    type_of_appointment = Column(String)
     patient_id = Column(Integer, ForeignKey('Patient.id'))
     doctor_id = Column(Integer, ForeignKey('Doctor.id'))
     date = Column(Date)
