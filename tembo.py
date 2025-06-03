@@ -3,11 +3,7 @@ from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, Date
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 import psycopg2
 
-host = "gruesomely-playful-boxer.data-1.use1.tembo.io"
-port = "5432"
-username = "postgres"
-password = "TTKYYqrKYk8dZZCC"
-dbname = "postgres"
+
 
 connection_string = f'postgresql://{username}:{password}@{host}:{port}/app'
 engine = sqlalchemy.create_engine(connection_string)
