@@ -10,14 +10,11 @@ from tembo import (
     Prescription,
 )
 
-# ---------------- NEW IMPORTS FOR PDF ---------------
 import os
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 
-########################################
-# 1. Hardcode Appointment Types
-########################################
+
 APPOINTMENT_TYPES = [
     "GP - Opći tjelesni pregled",
     "KRV - Test krvi",
@@ -34,9 +31,7 @@ APPOINTMENT_TYPES = [
     "NEURO - Neurološki pregled"
 ]
 
-########################################
-# 2. Database Connection
-########################################
+
 HOST = "gruesomely-playful-boxer.data-1.use1.tembo.io"
 PORT = "5432"
 USERNAME = "postgres"
@@ -48,25 +43,18 @@ engine = create_engine(connection_string, echo=False)
 Session = sessionmaker(bind=engine)
 session = Session()
 
-########################################
-# 3. Data Fetching
-########################################
+
 
 def fetch_all_patients():
-    """Return all patients in the DB."""
     return session.query(Patient).all()
 
 def fetch_patients_by_name(partial_name):
-    """Return patients whose name contains 'partial_name' (case-insensitive)."""
     return session.query(Patient).filter(
         Patient.name.ilike(f"%{partial_name}%")
     ).all()
 
 def fetch_patients_by_oib(partial_oib):
-    """
-    Return patients whose OIB matches partial_oib (partial, case-insensitive).
-    If you want an exact match, do '== partial_oib' instead of ilike.
-    """
+
     return session.query(Patient).filter(
         cast(Patient.OIB, String).ilike(f"%{partial_oib}%")
     ).all()
@@ -78,47 +66,36 @@ def fetch_prescriptions_for_patient(patient_id):
     return session.query(Prescription).filter_by(patient_id=patient_id).all()
 
 
-########################################
-# 4. Table Building / Refreshing
-########################################
+
 
 def build_patient_table(patients=None):
-    """
-    Populate the Treeview with rows for each patient.
-    If 'patients' is None, fetch all patients.
-    """
+
     if patients is None:
         patients = fetch_all_patients()
 
-    # Clear existing rows
+
     for row in patient_table.get_children():
         patient_table.delete(row)
 
     for p in patients:
-        # Summarize appointments, including date so we see WHEN it is
         appts = fetch_appointments_for_patient(p.id)
-        # e.g. "GP @ 2023-04-01, CT @ 2023-05-10"
         appt_str = ", ".join([
             f"{a.type_of_appointment} @ {a.date or 'NoDate'}"
             for a in appts
         ]) if appts else "None"
 
-        # Summarize prescriptions
         rx = fetch_prescriptions_for_patient(p.id)
         rx_str = ", ".join([r.medication_name for r in rx]) if rx else "None"
 
-        # Shorten medical history for display
         med_hist_short = (
             p.medical_history[:50] + "..."
             if p.medical_history and len(p.medical_history) > 50
             else (p.medical_history or "No history")
         )
 
-        # Format dates
         def dt2str(d):
             return d.strftime("%Y-%m-%d") if d else ""
 
-        # Insert row in Treeview
         patient_table.insert(
             "",
             tk.END,
@@ -132,18 +109,15 @@ def build_patient_table(patients=None):
                 dt2str(p.Start_of_problems),
                 dt2str(p.ENd_of_problems),
                 med_hist_short,
-                appt_str,  # includes date so we can see "when" appointment is
+                appt_str,
                 rx_str
             )
         )
 
 def refresh_table():
-    """Refresh the table with ALL patients."""
     build_patient_table(None)
 
-########################################
-# 5. Searching
-########################################
+
 
 def search_patients():
     search_term = entry_search.get().strip()
@@ -168,9 +142,7 @@ def clear_search():
     refresh_table()
 
 
-########################################
-# 6. "Add" Forms
-########################################
+
 
 def open_add_patient_form():
     form = tk.Toplevel(root)
@@ -194,7 +166,7 @@ def open_add_patient_form():
     # Sex
     ttk.Label(lf, text="Sex:").grid(row=2, column=0, sticky="w", padx=5, pady=5)
     combo_sex = ttk.Combobox(lf, values=["Male", "Female", "Other"], width=28, state="readonly")
-    combo_sex.set("Male")  
+    combo_sex.set("Male")
     combo_sex.grid(row=2, column=1, padx=5, pady=5)
 
     # Date of Birth
@@ -233,7 +205,6 @@ def open_add_patient_form():
     ttk.Button(lf, text="Browse...", command=browse_image).grid(row=7, column=2, padx=5)
 
     def submit_patient():
-        # Convert OIB to int if provided
         oib_val = None
         if entry_oib.get().strip():
             try:
@@ -281,13 +252,11 @@ def open_add_appointment_form():
     lf = ttk.LabelFrame(form, text="New Appointment", padding=10)
     lf.pack(fill="both", expand=True, padx=10, pady=10)
 
-    # Combobox with Hardcoded Appointment Types
     ttk.Label(lf, text="Type of Appointment:").grid(row=0, column=0, sticky="w", padx=5, pady=5)
     combo_type = ttk.Combobox(lf, values=APPOINTMENT_TYPES, state="readonly", width=35)
-    combo_type.set(APPOINTMENT_TYPES[0]) 
+    combo_type.set(APPOINTMENT_TYPES[0])
     combo_type.grid(row=0, column=1, padx=5, pady=5)
 
-    # Date & Time
     ttk.Label(lf, text="Date (YYYY-MM-DD):").grid(row=1, column=0, sticky="w", padx=5, pady=5)
     entry_date = ttk.Entry(lf, width=37)
     entry_date.grid(row=1, column=1, padx=5, pady=5)
@@ -310,7 +279,7 @@ def open_add_appointment_form():
             patient_id=patient.id,
             type_of_appointment=selected_type,
             date=appt_date if appt_date else None,
-            notes=f"{notes}\nTime: {appt_time}"  
+            notes=f"{notes}\nTime: {appt_time}"
         )
         session.add(new_appt)
         session.commit()
@@ -343,27 +312,22 @@ def open_add_prescription_form():
     lf = ttk.LabelFrame(form, text="New Prescription", padding=10)
     lf.pack(fill="both", expand=True, padx=10, pady=10)
 
-    # Medication Name
     ttk.Label(lf, text="Medication Name:").grid(row=0, column=0, sticky="w", padx=5, pady=5)
     entry_med = ttk.Entry(lf, width=30)
     entry_med.grid(row=0, column=1, padx=5, pady=5)
 
-    # Dosage
     ttk.Label(lf, text="Dosage:").grid(row=1, column=0, sticky="w", padx=5, pady=5)
     entry_dosage = ttk.Entry(lf, width=30)
     entry_dosage.grid(row=1, column=1, padx=5, pady=5)
 
-    # Doctor Name
     ttk.Label(lf, text="Doctor Name (optional):").grid(row=2, column=0, sticky="w", padx=5, pady=5)
     entry_doctor = ttk.Entry(lf, width=30)
     entry_doctor.grid(row=2, column=1, padx=5, pady=5)
 
-    # Prescription Date
     ttk.Label(lf, text="Date (YYYY-MM-DD):").grid(row=3, column=0, sticky="w", padx=5, pady=5)
     entry_date = ttk.Entry(lf, width=30)
     entry_date.grid(row=3, column=1, padx=5, pady=5)
 
-    # Notes
     ttk.Label(lf, text="Notes (optional):").grid(row=4, column=0, sticky="nw", padx=5, pady=5)
     txt_notes = tk.Text(lf, width=28, height=3)
     txt_notes.grid(row=4, column=1, padx=5, pady=5)
@@ -375,7 +339,6 @@ def open_add_prescription_form():
         rx_date = entry_date.get().strip()
         notes = txt_notes.get("1.0", tk.END).strip()
 
-        # Find/create doctor if needed
         doctor_obj = None
         if doctor_name:
             doctor_obj = session.query(Doctor).filter_by(name=doctor_name).first()
@@ -404,27 +367,20 @@ def open_add_prescription_form():
     )
 
 
-########################################
-# 7. Export to PDF Function
-########################################
+
 
 def export_all_to_pdf():
-    """
-    Exports all patient data into a PDF file, including appointments & prescriptions.
-    """
-    # Ask the user where to save the PDF
+
     file_path = filedialog.asksaveasfilename(
         defaultextension=".pdf",
         filetypes=[("PDF files", "*.pdf"), ("All Files", "*.*")]
     )
     if not file_path:
-        return  # user canceled
+        return
 
-    # Set up a canvas with reportlab
     c = canvas.Canvas(file_path, pagesize=letter)
     width, height = letter
 
-    # A bit of styling
     x_margin = 50
     y_position = height - 50
 
@@ -432,25 +388,20 @@ def export_all_to_pdf():
     c.drawString(x_margin, y_position, "All Patients Report")
     y_position -= 30
 
-    # Fetch all patients from DB
     patients = fetch_all_patients()
 
     c.setFont("Helvetica", 10)
 
     for p in patients:
-        # Basic patient info
         c.drawString(x_margin, y_position, f"Patient ID: {p.id}, Name: {p.name}, OIB: {p.OIB}, Sex: {p.Sex}")
         y_position -= 14
 
-        # Dates
         c.drawString(x_margin, y_position, f"  DOB: {p.Date_of_Birth or 'N/A'},   Start: {p.Start_of_problems or 'N/A'},   End: {p.ENd_of_problems or 'N/A'}")
         y_position -= 14
 
-        # Medical history
         c.drawString(x_margin, y_position, f"  Medical History: {p.medical_history or 'None'}")
         y_position -= 14
 
-        # Appointments
         appts = fetch_appointments_for_patient(p.id)
         if appts:
             c.drawString(x_margin, y_position, "  Appointments:")
@@ -462,7 +413,6 @@ def export_all_to_pdf():
             c.drawString(x_margin, y_position, "  Appointments: None")
             y_position -= 14
 
-        # Prescriptions
         rx = fetch_prescriptions_for_patient(p.id)
         if rx:
             c.drawString(x_margin, y_position, "  Prescriptions:")
@@ -474,9 +424,9 @@ def export_all_to_pdf():
             c.drawString(x_margin, y_position, "  Prescriptions: None")
             y_position -= 14
 
-        y_position -= 10  # extra space between patients
+        y_position -= 10
 
-        # If we get too close to the bottom, create a new page
+
         if y_position < 100:
             c.showPage()
             y_position = height - 50
@@ -486,9 +436,7 @@ def export_all_to_pdf():
     messagebox.showinfo("PDF Export", f"All patient data exported to:\n{os.path.basename(file_path)}")
 
 
-########################################
-# 8. Main GUI Setup
-########################################
+
 
 root = tk.Tk()
 root.title("Medical Management System")
@@ -500,7 +448,6 @@ style.configure("TLabel", font=("Arial", 10))
 style.configure("TButton", font=("Arial", 10))
 style.configure("TEntry", font=("Arial", 10))
 
-# -- Search Frame
 search_frame = ttk.Frame(root)
 search_frame.pack(side=tk.TOP, fill="x", padx=10, pady=5)
 
@@ -520,7 +467,6 @@ btn_do_search.pack(side=tk.LEFT)
 btn_clear_search = ttk.Button(search_frame, text="Clear", command=clear_search)
 btn_clear_search.pack(side=tk.LEFT, padx=(10, 0))
 
-# -- Table Frame
 table_frame = ttk.Frame(root)
 table_frame.pack(fill="both", expand=True, padx=10, pady=10)
 
@@ -547,7 +493,6 @@ table_scrollbar.config(command=patient_table.yview)
 table_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 patient_table.pack(side=tk.LEFT, fill="both", expand=True)
 
-# Define column headings
 patient_table.heading("ID", text="ID")
 patient_table.heading("Name", text="Name")
 patient_table.heading("OIB", text="OIB")
@@ -559,7 +504,6 @@ patient_table.heading("Medical_History", text="Medical History")
 patient_table.heading("Appointments", text="Appointments")
 patient_table.heading("Prescriptions", text="Prescriptions")
 
-# Define column widths
 patient_table.column("ID", width=40, anchor="center")
 patient_table.column("Name", width=120)
 patient_table.column("OIB", width=100)
@@ -573,7 +517,6 @@ patient_table.column("Prescriptions", width=120)
 
 build_patient_table()
 
-# -- Buttons Frame
 buttons_frame = ttk.Frame(root)
 buttons_frame.pack(pady=5)
 
@@ -589,7 +532,6 @@ btn_add_rx.grid(row=0, column=2, padx=10)
 btn_refresh = ttk.Button(buttons_frame, text="Refresh Table", command=refresh_table)
 btn_refresh.grid(row=0, column=3, padx=10)
 
-# -- NEW BUTTON FOR PDF EXPORT
 btn_export_pdf = ttk.Button(buttons_frame, text="Export All to PDF", command=export_all_to_pdf)
 btn_export_pdf.grid(row=0, column=4, padx=10)
 

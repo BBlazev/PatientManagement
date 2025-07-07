@@ -1,19 +1,27 @@
+import postgres
 import sqlalchemy
 from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, Date
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 import psycopg2
 
+USER     = "postgres"
+PASSWORD = "bartol3553"
+HOST     = "aws-0-eu-west-3.pooler.supabase.com"
+PORT     = 5432
+DBNAME   = "postgres"
 
-
-connection_string = f'postgresql://{username}:{password}@{host}:{port}/app'
-engine = sqlalchemy.create_engine(connection_string)
+connection_string = (
+    f"postgresql://{USER}:{PASSWORD}@{HOST}:{PORT}/{DBNAME}"
+)
+engine = create_engine(connection_string, echo=False)
 
 try:
-    connection = engine.connect()
-    print("Connected successfully to Tembo PostgreSQL!")
-    connection.close()
+    conn = engine.connect()
+    print("Spojeno na Supabase PostgreSQL!")
+    conn.close()
 except Exception as e:
-    print(f"Failed to connect: {e}")
+    print(" Ne mogu se spojiti:", e)
+    raise
 
 Base = declarative_base()
 
